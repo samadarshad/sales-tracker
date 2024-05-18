@@ -4,6 +4,8 @@ export default function TrackerList() {
   return (
     <div className="space-y-2">
       <Tracker />
+      <Tracker />
+      <Tracker />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Skeleton, Image, Avatar } from "@nextui-org/react";
 
 export function Tracker() {
   return (
-    <div className="border rounded p-2">
+    <div className="border rounded p-4">
       <div className="flex flex-row justify-between">
         <div className="flex flex-row gap-4 items-center">
           <Image
@@ -22,7 +22,7 @@ export function Tracker() {
           <FontAwesomeIcon size="1x" icon={faEdit} />
         </div>
       </div>
-      <div className="grid grid-cols-4 p-4">
+      <div className="grid grid-cols-4 py-4">
         <div className="col-span-1">
           <Image
             src="/webpage-preview.png"
