@@ -7,6 +7,7 @@ import {
   Button,
   Input,
 } from "@nextui-org/react";
+import HeaderAuth from "@/components/header-auth";
 
 export default function Header() {
   return (
@@ -23,9 +24,7 @@ export default function Header() {
       </NavbarContent>
       <NavbarContent justify="end">
         <NavbarItem>
-          <Button color="primary" variant="flat">
-            Sign Up
-          </Button>
+          <HeaderAuth />
         </NavbarItem>
       </NavbarContent>
     </Navbar>
