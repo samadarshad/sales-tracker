@@ -6,6 +6,7 @@ import { faHeart as faHeartSolid } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@nextui-org/react";
 import * as actions from "@/actions";
+import { useSession } from "next-auth/react";
 
 export default function FavouriteButton({
   tracker,

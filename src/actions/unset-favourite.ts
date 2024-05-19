@@ -7,7 +7,10 @@ import { revalidatePath } from "next/cache";
 export async function unsetFavourite(trackerId: string) {
   const session = await auth();
 
-  console.log(session);
+  if (!session || !session.user) {
+    console.error("You must be signed in to perform this action.");
+    return;
+  }
 
   await db.favourite.delete({
     where: {
