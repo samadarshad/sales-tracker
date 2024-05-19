@@ -6,9 +6,8 @@ import { faHeart as faHeartSolid } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "@nextui-org/react";
 import * as actions from "@/actions";
-import { useSession } from "next-auth/react";
 import { useFormState } from "react-dom";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import { useEffect } from "react";
 
 export default function FavouriteButton({
@@ -19,7 +18,10 @@ export default function FavouriteButton({
   favourited: boolean;
 }) {
   const [formState, action] = useFormState(
-    actions.setFavourite.bind(null, { trackerId: tracker.id }),
+    actions.setFavourite.bind(null, {
+      trackerId: tracker.id,
+      _set: !favourited,
+    }),
     { errors: {} }
   );
 
@@ -27,28 +29,28 @@ export default function FavouriteButton({
     toast.error(formState.errors._form?.join(", "));
   }, [formState.errors._form]);
   return (
-    <>
-      {favourited ? (
-        <Button onClick={() => actions.unsetFavourite(tracker.id)}>
-          <p className="text-red-500">{tracker._count.favourites}</p>
-          <FontAwesomeIcon
-            size="1x"
-            icon={faHeartSolid}
-            className="text-red-500"
-          />
-        </Button>
-      ) : (
-        <form action={action}>
-          <Button type="submit">
+    <form action={action}>
+      <Button type="submit">
+        {favourited ? (
+          <>
+            <p className="text-red-500">{tracker._count.favourites}</p>
+            <FontAwesomeIcon
+              size="1x"
+              icon={faHeartSolid}
+              className="text-red-500"
+            />
+          </>
+        ) : (
+          <>
             <p className="text-red-500">{tracker._count.favourites}</p>
             <FontAwesomeIcon
               size="1x"
               icon={faHeart}
               className="text-red-500"
             />
-          </Button>
-        </form>
-      )}
-    </>
+          </>
+        )}
+      </Button>
+    </form>
   );
 }

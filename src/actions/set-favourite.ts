@@ -11,14 +11,13 @@ interface SetFavouriteFormState {
 }
 
 export async function setFavourite(
-  { trackerId }: { trackerId: string },
+  { trackerId, _set }: { trackerId: string; _set: boolean },
   formState: SetFavouriteFormState,
   formData: FormData
 ): Promise<SetFavouriteFormState> {
   const session = await auth();
 
   if (!session || !session.user) {
-    console.error("You must be signed in to perform this action.");
     return {
       errors: {
         _form: ["You must be signed in to perform this action."],
@@ -26,12 +25,20 @@ export async function setFavourite(
     };
   }
 
-  await db.favourite.create({
-    data: {
-      trackerId,
-      userId: session?.user.id,
-    },
-  });
+  if (_set) {
+    await db.favourite.create({
+      data: {
+        trackerId,
+        userId: session?.user.id,
+      },
+    });
+  } else {
+    await db.favourite.delete({
+      where: {
+        userId_trackerId: { trackerId, userId: session.user.id },
+      },
+    });
+  }
 
   revalidatePath("/");
   return { errors: {} };
