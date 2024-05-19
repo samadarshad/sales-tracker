@@ -1,7 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faEdit } from "@fortawesome/free-regular-svg-icons";
 import TrackerChartExample from "@/components/trackers/tracker-chart-example";
-import { Skeleton, Image, Avatar } from "@nextui-org/react";
+import { Skeleton, Image, Avatar, Button } from "@nextui-org/react";
 
 export function Tracker() {
   return (
@@ -18,8 +18,23 @@ export function Tracker() {
           <h3 className="text-lg font-bold">Udacity</h3>
         </div>
         <div className="flex flex-row gap-4 items-center">
-          <FontAwesomeIcon size="1x" icon={faHeart} />
-          <FontAwesomeIcon size="1x" icon={faEdit} />
+          <div className="flex flex-row gap-1 items-center">
+            <Button>
+            <p className="text-red-500">123</p>
+              <FontAwesomeIcon
+                size="1x"
+                icon={faHeart}
+                className="text-red-500"
+              />
+            </Button>
+          </div>
+          <Button>
+            <FontAwesomeIcon
+              size="1x"
+              icon={faEdit}
+              className="text-amber-800"
+            />
+          </Button>
         </div>
       </div>
       <div className="grid grid-cols-4 py-4">
