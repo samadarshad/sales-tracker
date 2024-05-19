@@ -4,12 +4,26 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { revalidatePath } from "next/cache";
 
-export async function setFavourite(trackerId: string) {
+interface SetFavouriteFormState {
+  errors: {
+    _form?: string[];
+  };
+}
+
+export async function setFavourite(
+  { trackerId }: { trackerId: string },
+  formState: SetFavouriteFormState,
+  formData: FormData
+): Promise<SetFavouriteFormState> {
   const session = await auth();
 
   if (!session || !session.user) {
     console.error("You must be signed in to perform this action.");
-    return;
+    return {
+      errors: {
+        _form: ["You must be signed in to perform this action."],
+      },
+    };
   }
 
   await db.favourite.create({
@@ -20,4 +34,5 @@ export async function setFavourite(trackerId: string) {
   });
 
   revalidatePath("/");
+  return { errors: {} };
 }
