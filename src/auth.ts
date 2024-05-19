@@ -2,6 +2,13 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { Adapter } from "next-auth/adapters";
 import { db } from "@/db";
+import type {
+  GetServerSidePropsContext,
+  NextApiRequest,
+  NextApiResponse,
+} from "next";
+import type { NextAuthOptions } from "next-auth";
+import { getServerSession } from "next-auth";
 
 import Github from "next-auth/providers/github";
 
@@ -12,7 +19,7 @@ if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
   throw new Error("Missing github oauth credentials");
 }
 
-export const handler = NextAuth({
+const config = {
   adapter: PrismaAdapter(db) as Adapter,
   providers: [
     Github({
@@ -20,4 +27,25 @@ export const handler = NextAuth({
       clientSecret: GITHUB_CLIENT_SECRET,
     }),
   ],
-});
+  callbacks: {
+    // Usually not needed, here we are fixing a bug in nextauth
+    async session({ session, user }: any) {
+      if (session && user) {
+        session.user.id = user.id;
+      }
+
+      return session;
+    },
+  },
+} satisfies NextAuthOptions;
+
+export const handler = NextAuth(config);
+
+export function auth(
+  ...args:
+    | [GetServerSidePropsContext["req"], GetServerSidePropsContext["res"]]
+    | [NextApiRequest, NextApiResponse]
+    | []
+) {
+  return getServerSession(...args, config);
+}

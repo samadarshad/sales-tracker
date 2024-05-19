@@ -4,6 +4,10 @@ import TrackerChartExample from "@/components/trackers/tracker-chart-example";
 import { Skeleton, Image, Avatar, Button } from "@nextui-org/react";
 import { fetchTrackerById } from "@/db/queries/trackers";
 import { notFound } from "next/navigation";
+import { setFavourite } from "@/actions/set-favourite";
+import FavouriteButton from "../favourites/favourite-button";
+import { fetchFavourite } from "@/db/queries/favourites";
+import { auth } from "@/auth";
 
 interface TrackerProps {
   trackerId: string;
@@ -11,6 +15,14 @@ interface TrackerProps {
 
 export default async function Tracker({ trackerId }: TrackerProps) {
   const tracker = await fetchTrackerById(trackerId);
+
+  const session = await auth();
+  let favourited: boolean;
+  if (!session || !session.user) {
+    favourited = false;
+  } else {
+    favourited = !!(await fetchFavourite(trackerId, session.user.id)) || false;
+  }
 
   if (!tracker) {
     notFound();
@@ -31,14 +43,15 @@ export default async function Tracker({ trackerId }: TrackerProps) {
         </div>
         <div className="flex flex-row gap-4 items-center">
           <div className="flex flex-row gap-1 items-center">
-            <Button>
+            <FavouriteButton tracker={tracker} favourited={favourited} />
+            {/* <Button onClick={() => setFavourite(tracker.id)}>
               <p className="text-red-500">{tracker._count.favourites}</p>
               <FontAwesomeIcon
                 size="1x"
                 icon={faHeart}
                 className="text-red-500"
               />
-            </Button>
+            </Button> */}
           </div>
           <Button>
             <FontAwesomeIcon
