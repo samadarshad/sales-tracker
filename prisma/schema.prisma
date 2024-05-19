@@ -20,6 +20,9 @@ model User {
  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  trackers      Tracker[]
+  favourites    Favourite[]
 }
  
 model Account {
@@ -77,4 +80,41 @@ model Authenticator {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
  
   @@id([userId, credentialID])
+}
+
+model Tracker {
+  id                  String  @id @default(cuid())
+
+  websiteUrl          String
+  previewUrl          String
+  faviconUrl          String
+  aiPrompt            String
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  author              User      @relation(fields: [authorId], references: [id]) 
+  authorId            String
+
+  saleDatas           SaleData[]
+  favourites          Favourite[]
+}
+
+
+model SaleData {
+  trackerId            String
+  createdAt            DateTime
+  Tracker              Tracker  @relation(fields: [trackerId], references: [id])
+  sale                 Boolean
+
+  @@id([trackerId, createdAt])
+}
+
+model Favourite {
+  userId              String
+  trackerId           String
+  User                User    @relation(fields: [userId], references: [id])
+  Tracker             Tracker @relation(fields: [trackerId], references: [id])
+
+  @@id([userId, trackerId])
 }
