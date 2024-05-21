@@ -8,45 +8,37 @@ import {
   ModalFooter,
   Button,
   useDisclosure,
-  Input,
   Accordion,
   AccordionItem,
   Textarea,
-  Spinner,
 } from "@nextui-org/react";
 import * as actions from "@/actions";
 import { useFormState } from "react-dom";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import FormInput from "../common/form-input";
 export default function TrackerCreateForm() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [formState, action] = useFormState(actions.setWebsiteUrl, {
     errors: {},
   });
-  const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [collapseImage, setCollapseImage] = useState(false);
 
   const verifyWebsite = async (formData: FormData) => {
-    setLoading(true);
     setImageLoaded(false);
     setCollapseImage(false);
     await action(formData);
   };
 
   const clearWebsite = async () => {
-    setLoading(false);
     setImageLoaded(false);
     setCollapseImage(false);
     await action(new FormData());
   };
 
   useEffect(() => {
-    setLoading(false);
     setImageLoaded(false);
   }, [formState]);
 
@@ -64,39 +56,9 @@ export default function TrackerCreateForm() {
               </ModalHeader>
               <ModalBody>
                 <form action={verifyWebsite}>
-                  <Input
-                    name="website-url"
-                    label="Website URL"
-                    placeholder="e.g. www.udacity.com"
-                    className="flex items-center justify-center"
-                    endContent={
-                      loading ? (
-                        <Spinner color="default" />
-                      ) : imageLoaded && collapseImage ? null : (
-                        <div className="-m-1">
-                          <IconButton
-                            type="button"
-                            sx={{ p: "10px" }}
-                            aria-label="search"
-                            className="flex items-center justify-center"
-                            onClick={async (e) => {
-                              const formData = new FormData();
-                              formData.append(
-                                "website-url",
-                                (e.target as HTMLInputElement).value
-                              );
-                              await verifyWebsite(formData);
-                            }}
-                          >
-                            <FontAwesomeIcon icon={faMagnifyingGlass} />
-                          </IconButton>
-                        </div>
-                      )
-                    }
-                    isClearable={imageLoaded && collapseImage}
-                    onClear={
-                      imageLoaded && collapseImage ? clearWebsite : undefined
-                    }
+                  <FormInput
+                    loaded={imageLoaded && collapseImage}
+                    clearWebsite={clearWebsite}
                   />
                 </form>
                 <Collapse in={imageLoaded && collapseImage}>
