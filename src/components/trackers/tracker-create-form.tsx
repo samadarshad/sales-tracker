@@ -123,22 +123,24 @@ export default function TrackerCreateForm() {
                       ) : null}
                     </div>
                   </div>
+                  <Accordion>
+                    <AccordionItem
+                      title={
+                        <h3 className="font-thin">(Advanced) AI Prompt</h3>
+                      }
+                      className="-m-3"
+                    >
+                      <div className="items-center flex flex-col gap-1">
+                        <Textarea
+                          name="ai-prompt"
+                          label="AI Prompt"
+                          placeholder="Given the following website image, identify whether there is a sale currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
+                        />
+                        <Button color="default">Test</Button>
+                      </div>
+                    </AccordionItem>
+                  </Accordion>
                 </Collapse>
-                <Accordion>
-                  <AccordionItem
-                    title={<h3 className="font-thin">(Advanced) AI Prompt</h3>}
-                    className="-m-3"
-                  >
-                    <div className="items-center flex flex-col gap-1">
-                      <Textarea
-                        name="ai-prompt"
-                        label="AI Prompt"
-                        placeholder="Given the following website image, identify whether there is a sale currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
-                      />
-                      <Button color="primary">Test</Button>
-                    </div>
-                  </AccordionItem>
-                </Accordion>
               </ModalBody>
               <ModalFooter>
                 <Button color="danger" variant="light" onPress={onClose}>
