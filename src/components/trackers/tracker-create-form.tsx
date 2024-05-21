@@ -71,24 +71,26 @@ export default function TrackerCreateForm() {
                     className="flex items-center justify-center"
                     endContent={
                       loading ? (
-                        <Spinner />
+                        <Spinner color="default" />
                       ) : imageLoaded && collapseImage ? null : (
-                        <IconButton
-                          type="button"
-                          sx={{ p: "10px" }}
-                          aria-label="search"
-                          className="flex items-center justify-center"
-                          onClick={async (e) => {
-                            const formData = new FormData();
-                            formData.append(
-                              "website-url",
-                              (e.target as HTMLInputElement).value
-                            );
-                            await verifyWebsite(formData);
-                          }}
-                        >
-                          <FontAwesomeIcon icon={faMagnifyingGlass} />
-                        </IconButton>
+                        <div className="-m-1">
+                          <IconButton
+                            type="button"
+                            sx={{ p: "10px" }}
+                            aria-label="search"
+                            className="flex items-center justify-center"
+                            onClick={async (e) => {
+                              const formData = new FormData();
+                              formData.append(
+                                "website-url",
+                                (e.target as HTMLInputElement).value
+                              );
+                              await verifyWebsite(formData);
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faMagnifyingGlass} />
+                          </IconButton>
+                        </div>
                       )
                     }
                     isClearable={imageLoaded && collapseImage}
