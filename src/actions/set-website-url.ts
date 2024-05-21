@@ -17,7 +17,7 @@ export async function setWebsiteUrl(
   formData: FormData
 ): Promise<SetWebsiteUrlFormState> {
   if (formData.get("website-url")) {
-    await new Promise((callback) => setTimeout(callback, 2500));
+    await new Promise((callback) => setTimeout(callback, 250));
     return {
       errors: {},
       previewUrl: "/webpage-preview.png",

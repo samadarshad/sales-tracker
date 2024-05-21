@@ -11,6 +11,7 @@ import {
   Accordion,
   AccordionItem,
   Textarea,
+  Code,
 } from "@nextui-org/react";
 import * as actions from "@/actions";
 import { useFormState } from "react-dom";
@@ -18,9 +19,13 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import Collapse from "@mui/material/Collapse";
 import FormInput from "../common/form-input";
+import FormButton from "../common/form-button";
 export default function TrackerCreateForm() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [formState, action] = useFormState(actions.setWebsiteUrl, {
+    errors: {},
+  });
+  const [aiFormState, aiAction] = useFormState(actions.testAiPrompt, {
     errors: {},
   });
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -92,14 +97,31 @@ export default function TrackerCreateForm() {
                       }
                       className="-m-3"
                     >
-                      <div className="items-center flex flex-col gap-1">
-                        <Textarea
-                          name="ai-prompt"
-                          label="AI Prompt"
-                          placeholder="Given the following website image, identify whether there is a sale currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
-                        />
-                        <Button color="default">Test</Button>
-                      </div>
+                      <form action={aiAction}>
+                        <div className="flex flex-col gap-1">
+                          <Textarea
+                            name="ai-prompt"
+                            label="AI Prompt"
+                            placeholder="Given the following website image, identify whether there is a sale currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
+                          />
+                          <div className="flex justify-between">
+                            <div>
+                              <FormButton>Test</FormButton>
+                            </div>
+                            <div>
+                              <Collapse
+                                in={!!aiFormState.response}
+                                orientation="horizontal"
+                              >
+                                <div className="flex gap-1 items-center">
+                                  <p className="text-bold">Response: </p>
+                                  <Code>{aiFormState.response}</Code>
+                                </div>
+                              </Collapse>
+                            </div>
+                          </div>
+                        </div>
+                      </form>
                     </AccordionItem>
                   </Accordion>
                 </Collapse>
