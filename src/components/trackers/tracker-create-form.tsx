@@ -77,7 +77,7 @@ export default function TrackerCreateForm() {
                     </div>
                     <div className="col-span-2">
                       {formState.previewUrl ? (
-                        <Image
+                        <img // use Image (only using img to diable caching)
                           src={formState.previewUrl}
                           alt="logo"
                           width={1000}
@@ -102,7 +102,7 @@ export default function TrackerCreateForm() {
                           <Textarea
                             name="ai-prompt"
                             label="AI Prompt"
-                            placeholder="Given the following website image, identify whether there is a sale currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
+                            placeholder="Given the following website image, identify whether there is a sale, promotion, or any offer currently going on. Respond with either ‘yes’ if there is a sale or ‘no’ if there is no sale or it is unclear."
                           />
                           <div className="flex justify-between">
                             <div>
@@ -130,7 +130,7 @@ export default function TrackerCreateForm() {
                 <Button color="danger" variant="light" onPress={onClose}>
                   Cancel
                 </Button>
-                <Button color="primary" onPress={onClose}>
+                <Button color="primary" onPress={onClose} disabled>
                   Save
                 </Button>
               </ModalFooter>
