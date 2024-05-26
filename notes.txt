@@ -1,2 +1,18 @@
 nginx -s stop
 nginx -c /usr/local/etc/nginx/static-file-server.conf 
+
+
+npx prisma migrate dev --name add-models  
+npx prisma studio  
+---
+
+Plans:
+
+- save unique ID for each screenshot to DB
+- retrieve URL on image load
+- delete if not saved or deleted
+- save form, object to DB
+- load all saved objects on home page
+
+nice to have:
+- remove cookies banner (can we use AI for this?)

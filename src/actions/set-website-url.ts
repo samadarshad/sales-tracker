@@ -6,6 +6,7 @@ import { uploadFile } from "@/services/s3";
 import { db } from "@/db";
 import { auth } from "@/auth";
 import { Tracker } from "@prisma/client";
+import { v4 as uuidv4 } from "uuid";
 
 const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
 
@@ -65,7 +66,7 @@ export async function setWebsiteUrl(
     };
   }
 
-  const screenshotPath = "test.png";
+  const screenshotPath = `${uuidv4()}.png`;
 
   await takeScreenshot(websiteUrl, screenshotPath);
   const previewUrl = await uploadFile(screenshotPath, screenshotPath);
@@ -77,6 +78,7 @@ export async function setWebsiteUrl(
       authorId: session.user.id,
       faviconUrl: "",
       aiPrompt: "",
+      temporary: true,
     },
   });
 

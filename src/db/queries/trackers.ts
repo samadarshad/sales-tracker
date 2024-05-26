@@ -12,6 +12,9 @@ export function fetchTrackersBySearchTerm() {
 export function fetchAllTrackers(): Promise<TrackerWithData[]> {
   // include name, icon, image, sale-data, favourite count
   return db.tracker.findMany({
+    where: {
+      temporary: false,
+    },
     include: {
       _count: {
         select: {
