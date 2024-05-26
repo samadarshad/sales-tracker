@@ -42,11 +42,8 @@ export async function uploadFile(filePath, key) {
 
   const command = new PutObjectCommand(params);
   const data = await client.send(command);
-  console.log(data);
 
   const publicUrl = `https://${AWS_S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`;
-  console.log(`Public URL: ${publicUrl}`);
+
   return publicUrl;
 }
-
-// uploadFile("/Users/samadarshad/dev/sales-tracker/hn.png", "test.png");

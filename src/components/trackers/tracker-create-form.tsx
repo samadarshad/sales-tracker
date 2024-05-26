@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import Collapse from "@mui/material/Collapse";
 import FormInput from "../common/form-input";
 import FormButton from "../common/form-button";
+import { toast } from "react-toastify";
 export default function TrackerCreateForm() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [formState, action] = useFormState(actions.setWebsiteUrl, {
@@ -47,6 +48,10 @@ export default function TrackerCreateForm() {
     setImageLoaded(false);
   }, [formState]);
 
+  useEffect(() => {
+    toast.error(formState.errors._form?.join(", "));
+  }, [formState.errors._form]);
+
   // use form state, with the url to the image as the return, and any errors
 
   return (
@@ -64,6 +69,7 @@ export default function TrackerCreateForm() {
                   <FormInput
                     loaded={imageLoaded && collapseImage}
                     clearWebsite={clearWebsite}
+                    errorMessage={formState.errors.websiteUrl?.join(", ")}
                   />
                 </form>
                 <Collapse in={imageLoaded && collapseImage}>
@@ -76,9 +82,9 @@ export default function TrackerCreateForm() {
                       </p>
                     </div>
                     <div className="col-span-2">
-                      {formState.previewUrl ? (
-                        <img // use Image (only using img to diable caching)
-                          src={formState.previewUrl}
+                      {formState.tracker?.previewUrl ? (
+                        <Image
+                          src={formState.tracker?.previewUrl}
                           alt="logo"
                           width={1000}
                           height={160}
@@ -130,7 +136,7 @@ export default function TrackerCreateForm() {
                 <Button color="danger" variant="light" onPress={onClose}>
                   Cancel
                 </Button>
-                <Button color="primary" onPress={onClose} disabled>
+                <Button color="primary" onPress={onClose} isDisabled={true}>
                   Save
                 </Button>
               </ModalFooter>

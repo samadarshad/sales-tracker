@@ -3,6 +3,10 @@ import { z } from "zod";
 import isUrl from "is-url";
 import puppeteer from "puppeteer";
 import { uploadFile } from "@/services/s3";
+import { db } from "@/db";
+import { auth } from "@/auth";
+import { Tracker } from "@prisma/client";
+
 const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
 
 if (!IMAGES_BASE_URL) {
@@ -16,8 +20,9 @@ const setWebsiteUrlSchema = z.object({
 interface SetWebsiteUrlFormState {
   errors: {
     websiteUrl?: string[];
+    _form?: string[];
   };
-  previewUrl?: string;
+  tracker?: Tracker;
 }
 
 async function takeScreenshot(url: string, screenshotPath: string) {
@@ -39,7 +44,20 @@ export async function setWebsiteUrl(
   formState: SetWebsiteUrlFormState,
   formData: FormData
 ): Promise<SetWebsiteUrlFormState> {
-  const websiteUrl = formData.get("website-url")?.toString();
+  const session = await auth();
+  if (!session || !session.user) {
+    return {
+      errors: {
+        _form: ["You must sign in to do this."],
+      },
+    };
+  }
+
+  const websiteUrl = setWebsiteUrlSchema
+    .safeParse({
+      websiteUrl: formData.get("website-url"),
+    })
+    .data?.websiteUrl.toString();
 
   if (websiteUrl == null || !isUrl(websiteUrl)) {
     return {
@@ -52,17 +70,18 @@ export async function setWebsiteUrl(
   await takeScreenshot(websiteUrl, screenshotPath);
   const previewUrl = await uploadFile(screenshotPath, screenshotPath);
 
-  if (formData.get("website-url")) {
-    await new Promise((callback) => setTimeout(callback, 250));
-    return {
-      errors: {},
-      // previewUrl: `${IMAGES_BASE_URL}/hn.png`,
-      // previewUrl: "/webpage-preview.png",
+  const tracker = await db.tracker.create({
+    data: {
+      websiteUrl,
       previewUrl,
-    };
-  }
+      authorId: session.user.id,
+      faviconUrl: "",
+      aiPrompt: "",
+    },
+  });
 
   return {
     errors: {},
+    tracker: tracker,
   };
 }

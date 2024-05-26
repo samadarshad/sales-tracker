@@ -6,7 +6,7 @@ import IconButton from "@mui/material/IconButton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 
-export default function FormInput({ loaded, clearWebsite }) {
+export default function FormInput({ loaded, clearWebsite, errorMessage }) {
   const { pending } = useFormStatus();
   return (
     <Input
@@ -32,6 +32,8 @@ export default function FormInput({ loaded, clearWebsite }) {
       }
       isClearable={loaded}
       onClear={loaded ? clearWebsite : undefined}
+      isInvalid={!!errorMessage}
+      errorMessage={errorMessage}
     />
   );
 }
