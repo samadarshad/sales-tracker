@@ -89,6 +89,7 @@ model Tracker {
   previewUrl          String
   faviconUrl          String
   aiPrompt            String
+  temporary           Boolean @default(false)
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -98,6 +99,7 @@ model Tracker {
 
   saleDatas           SaleData[]
   favourites          Favourite[]
+
 }
 
 
