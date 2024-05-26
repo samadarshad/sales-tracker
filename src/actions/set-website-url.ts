@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { auth } from "@/auth";
 import { Tracker } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
+import fs from "fs";
 
 const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
 
@@ -81,6 +82,8 @@ export async function setWebsiteUrl(
       temporary: true,
     },
   });
+
+  fs.unlinkSync(screenshotPath);
 
   return {
     errors: {},
