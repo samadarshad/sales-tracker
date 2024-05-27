@@ -21,7 +21,7 @@ https://eu-west-2.console.aws.amazon.com/s3/buckets/sales-tracker-324941539183?r
 Plans:
 
 
-- consent cookies?
+- consent cookies? https://www.npmjs.com/package/idcac-playwright
 
 
 nice to have:

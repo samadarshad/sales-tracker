@@ -9,6 +9,7 @@ import { Tracker } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import { revalidatePath } from "next/cache";
+import url from "url";
 
 const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
 
@@ -26,6 +27,20 @@ interface SetWebsiteUrlFormState {
     _form?: string[];
   };
   tracker?: Tracker;
+}
+
+function getFaviconUrl(inputUrl: string) {
+  // Parse the input URL
+  const parsedUrl = new URL(inputUrl);
+
+  // Extract the protocol and hostname
+  const protocol = parsedUrl.protocol;
+  const hostname = parsedUrl.hostname;
+
+  // Combine protocol and hostname to get the home page URL
+  const homePageUrl = protocol + "//" + hostname;
+
+  return homePageUrl + "/favicon.ico";
 }
 
 async function takeScreenshot(url: string, screenshotPath: string) {
@@ -98,12 +113,15 @@ export async function setWebsiteUrl(
   await takeScreenshot(websiteUrl, screenshotPath);
   const previewUrl = await uploadFile(screenshotPath, screenshotPath);
 
+  // get home page's favicon.ico page
+  const faviconUrl = getFaviconUrl(websiteUrl);
+
   const tracker = await db.tracker.create({
     data: {
       websiteUrl,
       previewUrl,
       authorId: session.user.id,
-      faviconUrl: "",
+      faviconUrl,
       aiPrompt: "",
       temporary: true,
     },
