@@ -4,6 +4,18 @@ nginx -c /usr/local/etc/nginx/static-file-server.conf
 
 npx prisma migrate dev --name add-models  
 npx prisma studio  
+
+
+
+local dev:
+package:
+type: module
+// Load environment variables from .env.local file for local development
+// import dotenv from "dotenv";
+// dotenv.config({ path: "/Users/samadarshad/dev/sales-tracker/.env.local" });
+
+https://eu-west-2.console.aws.amazon.com/s3/buckets/sales-tracker-324941539183?region=eu-west-2&bucketType=general&tab=objects
+
 ---
 
 Plans:

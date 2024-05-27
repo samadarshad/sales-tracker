@@ -2,7 +2,7 @@
 import { z } from "zod";
 import isUrl from "is-url";
 import puppeteer from "puppeteer";
-import { uploadFile } from "@/services/s3";
+import { removeFile, uploadFile } from "@/services/s3";
 import { db } from "@/db";
 import { auth } from "@/auth";
 import { Tracker } from "@prisma/client";
@@ -61,6 +61,12 @@ export async function setWebsiteUrl(
     })
     .data?.websiteUrl.toString();
 
+  if (!websiteUrl) {
+    return {
+      errors: {},
+    };
+  }
+
   if (websiteUrl == null || !isUrl(websiteUrl)) {
     return {
       errors: { websiteUrl: ["Not a valid URL"] },
@@ -89,4 +95,20 @@ export async function setWebsiteUrl(
     errors: {},
     tracker: tracker,
   };
+}
+
+export async function saveTracker(tracker: Tracker): Promise<Tracker> {
+  return db.tracker.update({
+    where: { id: tracker.id },
+    data: {
+      temporary: false,
+    },
+  });
+}
+
+export async function removeTracker(tracker: Tracker): Promise<Tracker> {
+  await removeFile(tracker.previewUrl);
+  return db.tracker.delete({
+    where: { id: tracker.id },
+  });
 }

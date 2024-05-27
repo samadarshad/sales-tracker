@@ -22,7 +22,7 @@ import FormInput from "../common/form-input";
 import FormButton from "../common/form-button";
 import { toast } from "react-toastify";
 export default function TrackerCreateForm() {
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
   const [formState, action] = useFormState(actions.setWebsiteUrl, {
     errors: {},
   });
@@ -52,14 +52,32 @@ export default function TrackerCreateForm() {
     toast.error(formState.errors._form?.join(", "));
   }, [formState.errors._form]);
 
+  const closeHandler = async (save?: boolean) => {
+    onClose();
+    if (!formState.tracker) {
+      return;
+    }
+    if (save) {
+      await actions.saveTracker(formState.tracker);
+    } else {
+      await clearWebsite();
+      await actions.removeTracker(formState.tracker);
+    }
+  };
+
   // use form state, with the url to the image as the return, and any errors
 
   return (
     <>
       <Button onPress={onOpen}>Create a Tracker</Button>
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="3xl">
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        size="3xl"
+        onClose={closeHandler}
+      >
         <ModalContent>
-          {(onClose) => (
+          {() => (
             <>
               <ModalHeader className="flex flex-col gap-1">
                 Create a Tracker
@@ -133,10 +151,18 @@ export default function TrackerCreateForm() {
                 </Collapse>
               </ModalBody>
               <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
+                <Button
+                  color="danger"
+                  variant="light"
+                  onPress={() => closeHandler()}
+                >
                   Cancel
                 </Button>
-                <Button color="primary" onPress={onClose} isDisabled={true}>
+                <Button
+                  color="primary"
+                  onPress={() => closeHandler(true)}
+                  // isDisabled={true}
+                >
                   Save
                 </Button>
               </ModalFooter>

@@ -1,13 +1,12 @@
 import {
   S3Client,
-  ListBucketsCommand,
   PutObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
-// import dotenv from "dotenv";
+
 import fs from "fs";
 
-// Load environment variables from .env.local file
-// dotenv.config({ path: "/Users/samadarshad/dev/sales-tracker/.env.local" });
+
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
@@ -41,9 +40,19 @@ export async function uploadFile(filePath, key) {
   };
 
   const command = new PutObjectCommand(params);
-  const data = await client.send(command);
+  await client.send(command);
 
   const publicUrl = `https://${AWS_S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${key}`;
 
   return publicUrl;
+}
+
+export async function removeFile(url) {
+  const key = url.split("/").slice(-1)[0];
+  const params = {
+    Bucket: AWS_S3_BUCKET_NAME,
+    Key: key,
+  };
+  const command = new DeleteObjectCommand(params);
+  await client.send(command);
 }
