@@ -8,6 +8,7 @@ import { auth } from "@/auth";
 import { Tracker } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
+import { revalidatePath } from "next/cache";
 
 const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
 
@@ -36,6 +37,25 @@ async function takeScreenshot(url: string, screenshotPath: string) {
   await page.goto(url, {
     waitUntil: "networkidle2",
   });
+
+  // very basic cookie consent handling
+  await page.evaluate(() => {
+    function xcc_contains(selector: string, text: string | RegExp) {
+      var elements = document.querySelectorAll(selector);
+      return Array.prototype.filter.call(elements, function (element) {
+        return RegExp(text, "i").test(element.textContent.trim());
+      });
+    }
+    var _xcc;
+    _xcc = xcc_contains(
+      "[id*=cookie] a, [class*=cookie] a, [class*=consent] a, [class*=Consent] a,[id*=cookie] button, [class*=cookie] button, [class*=consent] button, [class*=Consent] button",
+      "(?:accept|agree|okay|ok)$"
+    );
+    if (_xcc != null && _xcc.length != 0) {
+      _xcc[0].click();
+    }
+  });
+
   await page.screenshot({
     path: screenshotPath,
   });
@@ -98,12 +118,14 @@ export async function setWebsiteUrl(
 }
 
 export async function saveTracker(tracker: Tracker): Promise<Tracker> {
-  return db.tracker.update({
+  const result = await db.tracker.update({
     where: { id: tracker.id },
     data: {
       temporary: false,
     },
   });
+  revalidatePath("/");
+  return result;
 }
 
 export async function removeTracker(tracker: Tracker): Promise<Tracker> {

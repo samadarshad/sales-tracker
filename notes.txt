@@ -20,11 +20,11 @@ https://eu-west-2.console.aws.amazon.com/s3/buckets/sales-tracker-324941539183?r
 
 Plans:
 
-- save unique ID for each screenshot to DB
-- retrieve URL on image load
-- delete if not saved or deleted
-- save form, object to DB
-- load all saved objects on home page
+
+- consent cookies?
+
 
 nice to have:
 - remove cookies banner (can we use AI for this?)
+- url name
+- favicon?
