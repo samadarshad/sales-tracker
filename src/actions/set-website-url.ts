@@ -11,12 +11,6 @@ import fs from "fs";
 import { revalidatePath } from "next/cache";
 import url from "url";
 
-const IMAGES_BASE_URL = process.env.IMAGES_BASE_URL;
-
-if (!IMAGES_BASE_URL) {
-  throw new Error("Missing images base URL");
-}
-
 const setWebsiteUrlSchema = z.object({
   websiteUrl: z.string().url(),
 });
@@ -89,7 +83,6 @@ export async function setWebsiteUrl(
       },
     };
   }
-
   const websiteUrl = setWebsiteUrlSchema
     .safeParse({
       websiteUrl: formData.get("website-url"),
