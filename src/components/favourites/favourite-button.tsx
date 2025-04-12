@@ -33,7 +33,7 @@ export default function FavouriteButton({
       <Button type="submit">
         {favourited ? (
           <>
-            <p className="text-red-500">{tracker._count.favourites}</p>
+            <p className="text-red-500">{tracker.favouritesCount}</p>
             <FontAwesomeIcon
               size="1x"
               icon={faHeartSolid}
@@ -42,7 +42,7 @@ export default function FavouriteButton({
           </>
         ) : (
           <>
-            <p className="text-red-500">{tracker._count.favourites}</p>
+            <p className="text-red-500">{tracker.favouritesCount}</p>
             <FontAwesomeIcon
               size="1x"
               icon={faHeart}

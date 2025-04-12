@@ -16,17 +16,7 @@ export async function setFavourite(
   formState: SetFavouriteFormState,
   formData: FormData
 ): Promise<SetFavouriteFormState> {
-  const session = useAuth();
-
-  if (!session || !session.user) {
-    return {
-      errors: {
-        _form: ["You must be signed in to perform this action."],
-      },
-    };
-  }
-
-  const userId = session.user.id;
+  const userId = 'test123';
   const favouritesCollection = collection(db, "favourites");
 
   if (_set) {

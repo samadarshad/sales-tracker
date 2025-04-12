@@ -4,11 +4,11 @@ import isUrl from "is-url";
 import puppeteer from "puppeteer";
 import { removeFile, uploadFile } from "@/services/s3";
 import { db } from "./../firebase";
-import { auth } from "@/auth";
 import { collection, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import { revalidatePath } from "next/cache";
+import { useAuth } from "@/app/providers";
 
 const setWebsiteUrlSchema = z.object({
   websiteUrl: z.string().url(),
@@ -61,14 +61,6 @@ export async function setWebsiteUrl(
   formState: SetWebsiteUrlFormState,
   formData: FormData
 ): Promise<SetWebsiteUrlFormState> {
-  const session = await auth();
-  if (!session || !session.user) {
-    return {
-      errors: {
-        _form: ["You must sign in to do this."],
-      },
-    };
-  }
 
   const websiteUrl = setWebsiteUrlSchema
     .safeParse({ websiteUrl: formData.get("website-url") })
@@ -89,7 +81,7 @@ export async function setWebsiteUrl(
   const trackerRef = await addDoc(trackersCollection, {
     websiteUrl,
     previewUrl,
-    authorId: session.user.id,
+    authorId: 'test123',
     faviconUrl,
     aiPrompt: "",
     temporary: true,

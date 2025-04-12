@@ -1,3 +1,4 @@
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faEdit } from "@fortawesome/free-regular-svg-icons";
 import TrackerChartExample from "@/components/trackers/tracker-chart-example";
@@ -8,6 +9,7 @@ import { setFavourite } from "@/actions/set-favourite";
 import FavouriteButton from "../favourites/favourite-button";
 import { fetchFavourite } from "@/db/queries/favourites";
 import { auth } from "@/auth";
+import { useAuth } from "@/app/providers";
 
 interface TrackerProps {
   trackerId: string;
@@ -16,13 +18,9 @@ interface TrackerProps {
 export default async function Tracker({ trackerId }: TrackerProps) {
   const tracker = await fetchTrackerById(trackerId);
 
-  const session = await auth();
   let favourited: boolean;
-  if (!session || !session.user) {
-    favourited = false;
-  } else {
-    favourited = !!(await fetchFavourite(trackerId, session.user.id)) || false;
-  }
+  favourited = !!(await fetchFavourite(trackerId, 'test123')) || false;
+  
 
   if (!tracker) {
     notFound();

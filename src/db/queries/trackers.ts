@@ -1,5 +1,5 @@
 import { db } from "./../../firebase";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, getCountFromServer, query, where } from "firebase/firestore";
 
 export type TrackerWithData = {
   id: string;
@@ -9,7 +9,26 @@ export type TrackerWithData = {
   saleData: any[]; // Adjust type as needed
   favouritesCount: number;
   temporary: boolean;
+  faviconUrl?: string;
+  websiteUrl?: string;
+  previewUrl?: string;
+  authorId?: string;
+  aiPrompt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  [key: string]: any; // Allow additional properties
 };
+
+async function countFavourites(trackerId: any): Promise<number> {
+  const favouritesCollectionRef = collection(db, "favourites");
+  // Create a query to filter by trackerId
+  const q = query(favouritesCollectionRef, where("trackerId", "==", trackerId));
+  // Get the count directly from the server
+  const snapshot = await getCountFromServer(q);
+  console.log(`Favourites count for tracker ${trackerId}:`, snapshot.data().count); // Optional logging
+  return snapshot.data().count;
+}
 
 export async function fetchAllTrackers(): Promise<TrackerWithData[]> {
   const trackersCollection = collection(db, "trackers");
@@ -19,7 +38,7 @@ export async function fetchAllTrackers(): Promise<TrackerWithData[]> {
   for (const doc of snapshot.docs) {
     const data = doc.data();
     if (!data.temporary) {
-      const favouritesCount = (data.favourites || []).length || 0;
+      const favouritesCount = await countFavourites(doc.id);
       trackers.push({
         id: doc.id,
         name: data.name,
@@ -45,7 +64,7 @@ export async function fetchTrackerById(
   }
 
   const data = snapshot.data();
-  const favouritesCount = (data.favourites || []).length || 0;
+  const favouritesCount = await countFavourites(trackerId);
 
   return {
     id: snapshot.id,
