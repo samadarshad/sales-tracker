@@ -1,7 +1,8 @@
 "use server";
 
-import { auth } from "@/auth";
-import { db } from "@/db";
+import { useAuth } from '@/app/providers';
+import { db } from "./../firebase";
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 
 interface SetFavouriteFormState {
@@ -15,7 +16,7 @@ export async function setFavourite(
   formState: SetFavouriteFormState,
   formData: FormData
 ): Promise<SetFavouriteFormState> {
-  const session = await auth();
+  const session = useAuth();
 
   if (!session || !session.user) {
     return {
@@ -25,19 +26,28 @@ export async function setFavourite(
     };
   }
 
+  const userId = session.user.id;
+  const favouritesCollection = collection(db, "favourites");
+
   if (_set) {
-    await db.favourite.create({
-      data: {
-        trackerId,
-        userId: session?.user.id,
-      },
+    // Add a new favourite
+    await addDoc(favouritesCollection, {
+      trackerId,
+      userId,
     });
   } else {
-    await db.favourite.delete({
-      where: {
-        userId_trackerId: { trackerId, userId: session.user.id },
-      },
-    });
+    // Find and delete the favourite
+    const favouritesQuery = query(
+      favouritesCollection,
+      where("trackerId", "==", trackerId),
+      where("userId", "==", userId)
+    );
+    const snapshot = await getDocs(favouritesQuery);
+
+    if (!snapshot.empty) {
+      const favouriteDoc = snapshot.docs[0]; // Assuming one match
+      await deleteDoc(doc(db, "favourites", favouriteDoc.id));
+    }
   }
 
   revalidatePath("/");

@@ -6,45 +6,58 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@nextui-org/react";
-import { signIn, signOut, useSession } from "next-auth/react";
 
-export default function HeaderAuth() {
-  const session = useSession();
+import React from 'react';
+import { signInWithPopup, GithubAuthProvider, signOut } from 'firebase/auth';
+import { auth } from '@/firebase'; // Adjust path
+import { useAuth } from '@/app/providers'; // Adjust path
 
-  let authContent: React.ReactNode;
+function SignOutButton() {
+  const { user } = useAuth();
 
-  if (session.status === "loading") {
-    authContent = null;
-  } else if (session.data?.user) {
-    authContent = (
-      <Popover placement="left">
-        <PopoverTrigger>
-          <Avatar src={session.data.user.image || ""} />
-        </PopoverTrigger>
-        <PopoverContent>
-          <div className="flex flex-col gap-2 p-4">
-            <Button color="primary" variant="flat">
-              My trackers
-            </Button>
-            <Button color="primary" variant="flat">
-              Favourites
-            </Button>
-            <Button color="secondary" variant="flat" onClick={() => signOut()}>
-              Sign Out
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  } else {
-    authContent = (
-      <>
-        <Button color="primary" variant="flat" onClick={() => signIn()}>
-          Sign In
-        </Button>
-      </>
-    );
+  const handleSignOut = async () => {
+      try {
+          await signOut(auth);
+          console.log('Signed out successfully!');
+      } catch (error) {
+          console.error('Error signing out:', error);
+      }
+  };
+
+  if (!user) {
+      return null; // Don't show if not signed in
   }
 
-  return authContent;
+  return (
+      <button onClick={handleSignOut}>
+          Sign Out
+      </button>
+  );
 }
+
+export default function SignInButton() {
+  const { user } = useAuth();
+
+  const handleSignIn = async () => {
+    const provider = new GithubAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      // User is signed in, AuthContext will update
+      console.log('Signed in successfully!');
+    } catch (error) {
+      console.error('Error signing in with GitHub:', error);
+      // Handle errors (e.g., show a message to the user)
+    }
+  };
+
+  if (user) {
+    return SignOutButton();
+  }
+
+  return (
+    <button onClick={handleSignIn}>
+      Sign in with GitHub
+    </button>
+  );
+}
+
