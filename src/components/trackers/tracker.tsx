@@ -1,4 +1,3 @@
-
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faEdit } from "@fortawesome/free-regular-svg-icons";
 import TrackerChartExample from "@/components/trackers/tracker-chart-example";
@@ -8,22 +7,25 @@ import { notFound } from "next/navigation";
 import { setFavourite } from "@/actions/set-favourite";
 import FavouriteButton from "../favourites/favourite-button";
 import { fetchFavourite } from "@/db/queries/favourites";
-import { auth } from "@/auth";
-import { useAuth } from "@/app/providers";
+import { getUserFromSession } from '@/lib/auth-utils';
 
 interface TrackerProps {
   trackerId: string;
 }
 
 export default async function Tracker({ trackerId }: TrackerProps) {
-  const tracker = await fetchTrackerById(trackerId);
-
-  let favourited: boolean;
-  favourited = !!(await fetchFavourite(trackerId, 'test123')) || false;
-  
+  const [tracker, userId] = await Promise.all([
+    fetchTrackerById(trackerId),
+    getUserFromSession()
+  ]);
 
   if (!tracker) {
     notFound();
+  }
+
+  let favourited: boolean = false;
+  if (userId) {
+    favourited = !!(await fetchFavourite(trackerId, userId));
   }
 
   return (
@@ -41,15 +43,12 @@ export default async function Tracker({ trackerId }: TrackerProps) {
         </div>
         <div className="flex flex-row gap-4 items-center">
           <div className="flex flex-row gap-1 items-center">
-            <FavouriteButton tracker={tracker} favourited={favourited} />
-            {/* <Button onClick={() => setFavourite(tracker.id)}>
-              <p className="text-red-500">{tracker._count.favourites}</p>
-              <FontAwesomeIcon
-                size="1x"
-                icon={faHeart}
-                className="text-red-500"
-              />
-            </Button> */}
+            {userId && (
+              <FavouriteButton tracker={tracker} favourited={favourited} />
+            )}
+            {!userId && (
+              <div className="w-[36px] h-[36px]"></div>
+            )}
           </div>
           <Button>
             <FontAwesomeIcon

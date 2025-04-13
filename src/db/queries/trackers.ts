@@ -26,7 +26,6 @@ async function countFavourites(trackerId: any): Promise<number> {
   const q = query(favouritesCollectionRef, where("trackerId", "==", trackerId));
   // Get the count directly from the server
   const snapshot = await getCountFromServer(q);
-  console.log(`Favourites count for tracker ${trackerId}:`, snapshot.data().count); // Optional logging
   return snapshot.data().count;
 }
 
