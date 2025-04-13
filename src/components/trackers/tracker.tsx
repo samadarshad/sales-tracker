@@ -19,6 +19,8 @@ export default async function Tracker({ trackerId }: TrackerProps) {
     getUserFromSession()
   ]);
 
+  console.log("tracker", tracker);
+
   if (!tracker) {
     notFound();
   }
