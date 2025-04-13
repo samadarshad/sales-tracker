@@ -58,9 +58,16 @@ async function takeScreenshot(url: string, screenshotPath: string) {
 }
 
 export async function setWebsiteUrl(
+  userId: string, // Add userId as the first parameter
   formState: SetWebsiteUrlFormState,
   formData: FormData
 ): Promise<SetWebsiteUrlFormState> {
+  // Ensure userId is provided
+  if (!userId) {
+    return {
+      errors: { _form: ["User not authenticated."] },
+    };
+  }
 
   const websiteUrl = setWebsiteUrlSchema
     .safeParse({ websiteUrl: formData.get("website-url") })
@@ -81,7 +88,7 @@ export async function setWebsiteUrl(
   const trackerRef = await addDoc(trackersCollection, {
     websiteUrl,
     previewUrl,
-    authorId: 'test123',
+    authorId: userId, // Use the userId parameter here
     faviconUrl,
     aiPrompt: "",
     temporary: true,
