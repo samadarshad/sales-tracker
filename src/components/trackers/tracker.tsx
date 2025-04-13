@@ -43,12 +43,7 @@ export default async function Tracker({ trackerId }: TrackerProps) {
         </div>
         <div className="flex flex-row gap-4 items-center">
           <div className="flex flex-row gap-1 items-center">
-            {userId && (
               <FavouriteButton tracker={tracker} favourited={favourited} />
-            )}
-            {!userId && (
-              <div className="w-[36px] h-[36px]"></div>
-            )}
           </div>
           <Button>
             <FontAwesomeIcon
