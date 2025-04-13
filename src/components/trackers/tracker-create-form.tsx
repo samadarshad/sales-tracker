@@ -21,9 +21,16 @@ import Collapse from "@mui/material/Collapse";
 import FormInput from "../common/form-input";
 import FormButton from "../common/form-button";
 import { toast } from "react-toastify";
+import { useAuth } from "@/app/providers"; // Import useAuth
+
 export default function TrackerCreateForm() {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
-  const [formState, action] = useFormState(actions.setWebsiteUrl, {
+  const { user } = useAuth(); // Get user from auth context
+
+  // Bind the userId to the action
+  const setWebsiteUrlWithUser = actions.setWebsiteUrl.bind(null, user?.uid || "");
+
+  const [formState, action] = useFormState(setWebsiteUrlWithUser, { // Use the bound action
     errors: {},
   });
   const [aiFormState, aiAction] = useFormState(actions.testAiPrompt, {

@@ -3,13 +3,12 @@ import { z } from "zod";
 import isUrl from "is-url";
 import puppeteer from "puppeteer";
 import { removeFile, uploadFile } from "@/services/s3";
-import { db } from "@/db";
-import { auth } from "@/auth";
-import { Tracker } from "@prisma/client";
+import { db } from "./../firebase";
+import { collection, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
 import { revalidatePath } from "next/cache";
-import url from "url";
+import { useAuth } from "@/app/providers";
 
 const setWebsiteUrlSchema = z.object({
   websiteUrl: z.string().url(),
@@ -20,21 +19,14 @@ interface SetWebsiteUrlFormState {
     websiteUrl?: string[];
     _form?: string[];
   };
-  tracker?: Tracker;
+  tracker?: any; // Adjust type as needed
 }
 
 function getFaviconUrl(inputUrl: string) {
-  // Parse the input URL
   const parsedUrl = new URL(inputUrl);
-
-  // Extract the protocol and hostname
   const protocol = parsedUrl.protocol;
   const hostname = parsedUrl.hostname;
-
-  // Combine protocol and hostname to get the home page URL
-  const homePageUrl = protocol + "//" + hostname;
-
-  return homePageUrl + "/favicon.ico";
+  return `${protocol}//${hostname}/favicon.ico`;
 }
 
 async function takeScreenshot(url: string, screenshotPath: string) {
@@ -43,11 +35,8 @@ async function takeScreenshot(url: string, screenshotPath: string) {
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
   );
-  await page.goto(url, {
-    waitUntil: "networkidle2",
-  });
+  await page.goto(url, { waitUntil: "networkidle2" });
 
-  // very basic cookie consent handling
   await page.evaluate(() => {
     function xcc_contains(selector: string, text: string | RegExp) {
       var elements = document.querySelectorAll(selector);
@@ -55,8 +44,7 @@ async function takeScreenshot(url: string, screenshotPath: string) {
         return RegExp(text, "i").test(element.textContent.trim());
       });
     }
-    var _xcc;
-    _xcc = xcc_contains(
+    var _xcc = xcc_contains(
       "[id*=cookie] a, [class*=cookie] a, [class*=consent] a, [class*=Consent] a,[id*=cookie] button, [class*=cookie] button, [class*=consent] button, [class*=Consent] button",
       "(?:accept|agree|okay|ok)$"
     );
@@ -65,83 +53,65 @@ async function takeScreenshot(url: string, screenshotPath: string) {
     }
   });
 
-  await page.screenshot({
-    path: screenshotPath,
-  });
+  await page.screenshot({ path: screenshotPath });
   await browser.close();
 }
 
 export async function setWebsiteUrl(
+  userId: string, // Add userId as the first parameter
   formState: SetWebsiteUrlFormState,
   formData: FormData
 ): Promise<SetWebsiteUrlFormState> {
-  const session = await auth();
-  if (!session || !session.user) {
+  // Ensure userId is provided
+  if (!userId) {
     return {
-      errors: {
-        _form: ["You must sign in to do this."],
-      },
+      errors: { _form: ["User not authenticated."] },
     };
   }
+
   const websiteUrl = setWebsiteUrlSchema
-    .safeParse({
-      websiteUrl: formData.get("website-url"),
-    })
+    .safeParse({ websiteUrl: formData.get("website-url") })
     .data?.websiteUrl.toString();
 
-  if (!websiteUrl) {
-    return {
-      errors: {},
-    };
-  }
-
-  if (websiteUrl == null || !isUrl(websiteUrl)) {
+  if (!websiteUrl || !isUrl(websiteUrl)) {
     return {
       errors: { websiteUrl: ["Not a valid URL"] },
     };
   }
 
   const screenshotPath = `${uuidv4()}.png`;
-
   await takeScreenshot(websiteUrl, screenshotPath);
   const previewUrl = await uploadFile(screenshotPath, screenshotPath);
-
-  // get home page's favicon.ico page
   const faviconUrl = getFaviconUrl(websiteUrl);
 
-  const tracker = await db.tracker.create({
-    data: {
-      websiteUrl,
-      previewUrl,
-      authorId: session.user.id,
-      faviconUrl,
-      aiPrompt: "",
-      temporary: true,
-    },
+  const trackersCollection = collection(db, "trackers");
+  const trackerRef = await addDoc(trackersCollection, {
+    websiteUrl,
+    previewUrl,
+    authorId: userId, // Use the userId parameter here
+    faviconUrl,
+    aiPrompt: "",
+    temporary: true,
   });
 
   fs.unlinkSync(screenshotPath);
 
   return {
     errors: {},
-    tracker: tracker,
+    tracker: { id: trackerRef.id, websiteUrl, previewUrl, faviconUrl, temporary: true },
   };
 }
 
-export async function saveTracker(tracker: Tracker): Promise<Tracker> {
-  const result = await db.tracker.update({
-    where: { id: tracker.id },
-    data: {
-      temporary: false,
-    },
-  });
+export async function saveTracker(tracker: any): Promise<any> {
+  const trackerDoc = doc(db, "trackers", tracker.id);
+  await updateDoc(trackerDoc, { temporary: false });
   revalidatePath("/");
-  return result;
+  return { ...tracker, temporary: false };
 }
 
-export async function removeTracker(tracker: Tracker): Promise<Tracker> {
+export async function removeTracker(tracker: any): Promise<any> {
   await removeFile(tracker.previewUrl);
-  return db.tracker.delete({
-    where: { id: tracker.id },
-  });
+  const trackerDoc = doc(db, "trackers", tracker.id);
+  await deleteDoc(trackerDoc);
+  return tracker;
 }

@@ -7,25 +7,26 @@ import { notFound } from "next/navigation";
 import { setFavourite } from "@/actions/set-favourite";
 import FavouriteButton from "../favourites/favourite-button";
 import { fetchFavourite } from "@/db/queries/favourites";
-import { auth } from "@/auth";
+import { getUserFromSession } from '@/lib/auth-utils';
 
 interface TrackerProps {
   trackerId: string;
 }
 
 export default async function Tracker({ trackerId }: TrackerProps) {
-  const tracker = await fetchTrackerById(trackerId);
+  const [tracker, userId] = await Promise.all([
+    fetchTrackerById(trackerId),
+    getUserFromSession()
+  ]);
 
-  const session = await auth();
-  let favourited: boolean;
-  if (!session || !session.user) {
-    favourited = false;
-  } else {
-    favourited = !!(await fetchFavourite(trackerId, session.user.id)) || false;
-  }
 
   if (!tracker) {
     notFound();
+  }
+
+  let favourited: boolean = false;
+  if (userId) {
+    favourited = !!(await fetchFavourite(trackerId, userId));
   }
 
   return (
@@ -43,15 +44,7 @@ export default async function Tracker({ trackerId }: TrackerProps) {
         </div>
         <div className="flex flex-row gap-4 items-center">
           <div className="flex flex-row gap-1 items-center">
-            <FavouriteButton tracker={tracker} favourited={favourited} />
-            {/* <Button onClick={() => setFavourite(tracker.id)}>
-              <p className="text-red-500">{tracker._count.favourites}</p>
-              <FontAwesomeIcon
-                size="1x"
-                icon={faHeart}
-                className="text-red-500"
-              />
-            </Button> */}
+              <FavouriteButton tracker={tracker} favourited={favourited} />
           </div>
           <Button>
             <FontAwesomeIcon
