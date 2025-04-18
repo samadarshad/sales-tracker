@@ -15,11 +15,11 @@ import * as logger from "firebase-functions/logger";
 import admin from "firebase-admin"; // Use default import for admin
 
 // Import Puppeteer dependencies for serverless environment
-import puppeteer from 'puppeteer-core'; // Use puppeteer-core
+import puppeteer from 'puppeteer-extra'; // Use puppeteer-extra
 import chromium from 'chrome-aws-lambda'; // Import chrome-aws-lambda
 // Stealth plugin is typically used with puppeteer-extra, remove if using core directly
-// import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-// puppeteer.use(StealthPlugin()); // Remove this line
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+puppeteer.use(StealthPlugin()); // Add this line back
 
 admin.initializeApp();
 const db = admin.firestore();
