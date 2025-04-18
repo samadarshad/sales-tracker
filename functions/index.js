@@ -30,6 +30,7 @@ export const dailyTrackerProcessor = functions.https.onRequest(async (request, r
     console.log("Starting daily tracker processing job on request.");
 
     const trackersRef = db.collection("trackers");
+    const resultsRef = db.collection("sales"); // Rename collection to "sales"
     // Optionally filter trackers if needed, e.g., only active ones
     // const q = trackersRef.where("active", "==", true);
     const snapshot = await trackersRef.get();
@@ -48,24 +49,46 @@ export const dailyTrackerProcessor = functions.https.onRequest(async (request, r
       console.log(`Processing tracker: ${trackerId}`);
 
       // --- Add your processing logic here ---
-      // Example: Fetch external data, update the document, etc.
       const processPromise = (async () => {
         try {
-          // Replace with your actual processing task
-          // const externalData = await fetchWebsiteData(trackerData.websiteUrl);
-          // await doc.ref.update({ lastProcessed: admin.firestore.Timestamp.now(), /* other fields */ });
-          console.log(`Successfully processed tracker: ${trackerId}`);
+          // --- Replace with your actual processing task ---
+          // This should eventually call your scraper and get the percentage
+          // For now, let's assume a placeholder percentage is calculated
+          const placeholderPercentageResult = Math.random() * 100; // Example result
+          console.log(`Calculated result for ${trackerId}: ${placeholderPercentageResult.toFixed(2)}%`);
+          // --- End of placeholder processing task ---
+
+          // Create a new document in the renamed collection ("sales")
+          await resultsRef.add({
+            trackerRef: doc.ref, // Store a reference to the original tracker document
+            result: placeholderPercentageResult, // Store the calculated percentage
+            date: admin.firestore.Timestamp.now() // Store the processing timestamp
+          });
+
+          console.log(`Successfully processed and saved result for tracker: ${trackerId}`);
+
         } catch (error) {
           console.error(`Error processing tracker ${trackerId}:`, error);
-          // Decide how to handle errors (e.g., log, retry, mark as failed)
-          // Consider adding specific error responses if needed
+          // Decide how to handle errors (e.g., log, maybe add an error field to the result doc)
+          // Example: Log error to results collection (optional)
+          try {
+              // Log error to the renamed collection ("sales")
+              await resultsRef.add({
+                  trackerRef: doc.ref,
+                  result: null, // Indicate failure
+                  error: error.message || 'Unknown processing error',
+                  date: admin.firestore.Timestamp.now()
+              });
+          } catch (logError) {
+              console.error(`Failed to log error to results collection for tracker ${trackerId}:`, logError);
+          }
         }
       })();
       processingPromises.push(processPromise);
       // --- End of processing logic ---
     });
 
-    // Wait for all processing tasks to complete
+    // Wait for all processing tasks (including saving results) to complete
     try {
         await Promise.all(processingPromises);
         console.log("Finished daily tracker processing job.");
