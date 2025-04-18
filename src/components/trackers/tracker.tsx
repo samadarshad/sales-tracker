@@ -1,22 +1,24 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faEdit } from "@fortawesome/free-regular-svg-icons";
-import TrackerChartExample from "@/components/trackers/tracker-chart-example";
 import { Skeleton, Image, Avatar, Button } from "@nextui-org/react";
 import { fetchTrackerById } from "@/db/queries/trackers";
 import { notFound } from "next/navigation";
-import { setFavourite } from "@/actions/set-favourite";
 import FavouriteButton from "../favourites/favourite-button";
 import { fetchFavourite } from "@/db/queries/favourites";
 import { getUserFromSession } from '@/lib/auth-utils';
+import { fetchSalesForTracker } from "@/db/queries/sales"; // Import the new query
+import TrackerSalesChart from "./tracker-sales-chart"; // Import the new chart component
 
 interface TrackerProps {
   trackerId: string;
 }
 
 export default async function Tracker({ trackerId }: TrackerProps) {
-  const [tracker, userId] = await Promise.all([
+  // Fetch tracker, user session, and sales data concurrently
+  const [tracker, userId, salesData] = await Promise.all([
     fetchTrackerById(trackerId),
-    getUserFromSession()
+    getUserFromSession(),
+    fetchSalesForTracker(trackerId) // Fetch sales data
   ]);
 
 
@@ -60,7 +62,7 @@ export default async function Tracker({ trackerId }: TrackerProps) {
           <Image src={tracker.previewUrl} alt="webpage preview" radius="none" />
         </div>
         <div className="col-span-3">
-          <TrackerChartExample />
+          <TrackerSalesChart salesData={salesData} />
         </div>
       </div>
     </div>
