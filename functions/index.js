@@ -62,19 +62,12 @@ async function scrapeWebsiteForPromotion(url) {
     // Viewport might be set by chromium.defaultViewport
     // await page.setViewport({ width: 1366, height: 768 });
 
-    logger.info(`Navigating to ${url}...`);
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 }); // 60s timeout
-    logger.info(`Navigation complete for ${url}. Waiting for body...`);
     await page.waitForSelector('body', { timeout: 30000 }); // Wait up to 30s for body
-    logger.info(`Body element found for ${url}. Waiting additional time...`);
     await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
-    logger.info(`Additional wait finished for ${url}. Getting content...`);
 
     const html = await page.content();
-    // Optional: Log HTML preview for debugging
-    // const htmlLines = html.split('\n');
-    // const htmlPreview = htmlLines.slice(0, 5).join('\n');
-    // logger.debug('--- HTML Preview ---', { url: url, preview: htmlPreview });
+
 
     const promoKeywords = ['sale', 'offer', 'discount', 'promotion', 'save', 'deal', 'promo', 'clearance'];
     const lowerCaseHtml = html.toLowerCase();
@@ -92,6 +85,10 @@ async function scrapeWebsiteForPromotion(url) {
       logger.info(`Found keywords for ${url}: ${[...foundKeywords].join(', ')}`, { url: url });
     } else {
       logger.info(`No keywords found for ${url}.`, { url: url });
+          // Optional: Log HTML preview for debugging
+      const htmlLines = html.split('\n');
+      const htmlPreview = htmlLines.slice(0, 5).join('\n');
+      logger.debug('--- HTML Preview ---', { url: url, preview: htmlPreview });
     }
 
     logger.info(`Calculated chance for ${url}: ${percentageChance.toFixed(2)}%`, { url: url });
@@ -102,9 +99,7 @@ async function scrapeWebsiteForPromotion(url) {
     return 0; // Return 0% on error
   } finally {
     if (browser) {
-      logger.info(`Closing browser for ${url}...`);
       await browser.close();
-      logger.info(`Browser closed for ${url}.`);
     }
   }
 }
@@ -145,20 +140,12 @@ export const dailyTrackerProcessor = onRequest(
         snapshot.forEach((doc) => {
           const trackerId = doc.id;
           const trackerData = doc.data();
-          logger.info(`Processing tracker: ${trackerId}`, { trackerId: trackerId }); // Use logger
-
-          // Ensure the tracker has a URL
-          if (!trackerData.websiteUrl) {
-              logger.warn(`Tracker ${trackerId} is missing websiteUrl field. Skipping.`, { trackerId: trackerId });
-              return; // Skip this tracker if no URL
-          }
 
           const processPromise = (async () => {
             let calculatedPercentage = 0; // Default value
             try {
               // --- Call the actual scraper ---
               calculatedPercentage = await scrapeWebsiteForPromotion(trackerData.websiteUrl);
-              logger.info(`Scraper returned ${calculatedPercentage.toFixed(2)}% for ${trackerId}`, { trackerId: trackerId });
               // --- End scraper call ---
 
               // Create a new document in the "sales" collection
@@ -167,8 +154,6 @@ export const dailyTrackerProcessor = onRequest(
                 result: calculatedPercentage, // Use the result from the scraper
                 date: admin.firestore.Timestamp.now()
               });
-
-              logger.info(`Successfully processed and saved result for tracker: ${trackerId}`, { trackerId: trackerId }); // Use logger
 
             } catch (error) {
               // Error during scraping is handled within scrapeWebsiteForPromotion
