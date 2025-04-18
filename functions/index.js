@@ -14,10 +14,12 @@ import * as logger from "firebase-functions/logger";
 // import * as functions from "firebase-functions";
 import admin from "firebase-admin"; // Use default import for admin
 
-// Import Puppeteer dependencies
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-puppeteer.use(StealthPlugin());
+// Import Puppeteer dependencies for serverless environment
+import puppeteer from 'puppeteer-core'; // Use puppeteer-core
+import chromium from 'chrome-aws-lambda'; // Import chrome-aws-lambda
+// Stealth plugin is typically used with puppeteer-extra, remove if using core directly
+// import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+// puppeteer.use(StealthPlugin()); // Remove this line
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -28,15 +30,37 @@ async function scrapeWebsiteForPromotion(url) {
   let browser = null;
   logger.info(`Starting scrape for: ${url}`);
   try {
-    // Launch browser - Added args for Cloud Functions environment
+    // Get executable path from chrome-aws-lambda
+    const executablePath = await chromium.executablePath;
+
+    // Check if executablePath is valid
+    if (!executablePath) {
+        logger.error("Chromium executable path not found via chrome-aws-lambda. Ensure it's installed correctly.");
+        throw new Error("Chromium executable path not found.");
+    }
+    logger.info(`Using Chromium executable at: ${executablePath}`);
+
+    // Launch browser using puppeteer-core and chrome-aws-lambda options
     browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: executablePath,
+      headless: chromium.headless, // Use headless setting from chrome-aws-lambda
+      ignoreHTTPSErrors: true, // Often useful
+      // Remove previous args if using chromium.args, as they might conflict
+      // args: [
+      //     '--no-sandbox',
+      //     '--disable-setuid-sandbox',
+      //     '--disable-dev-shm-usage',
+      //     '--single-process'
+      // ],
     });
     const page = await browser.newPage();
 
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    await page.setViewport({ width: 1366, height: 768 });
+    // Consider removing or adjusting UserAgent if using chrome-aws-lambda defaults
+    // await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    // Viewport might be set by chromium.defaultViewport
+    // await page.setViewport({ width: 1366, height: 768 });
 
     logger.info(`Navigating to ${url}...`);
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 }); // 60s timeout
@@ -99,8 +123,8 @@ export const helloWorld = onRequest((request, response) => {
 // Define dailyTrackerProcessor using v2 onRequest and pass runtime options as the first argument
 export const dailyTrackerProcessor = onRequest(
     {
-        timeoutSeconds: 300, // Example: 5 minutes
-        memory: '1GB'       // Example: 1GB (adjust as needed, options: 128MiB, 256MiB, 512MiB, 1GiB, 2GiB, 4GiB, 8GiB)
+        timeoutSeconds: 540, // Increased timeout (max for v2 is 540s/9min for HTTP)
+        memory: '2GiB',      // Increased memory (2GiB recommended for Puppeteer)
         // region: 'us-central1' // Optional: specify region if needed
     },
     async (request, response) => {

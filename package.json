@@ -29,7 +29,7 @@
     "framer-motion": "^11.2.4",
     "is-url": "^1.2.4",
     "next": "14.2.3",
-    "puppeteer": "^22.9.0",
+    "puppeteer": "^22.15.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^18",
