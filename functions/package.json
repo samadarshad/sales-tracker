@@ -17,6 +17,7 @@
   "type": "module",
   "dependencies": {
     "@crawlee/memory-storage": "^3.13.2",
+    "axios": "^1.8.4",
     "chrome-aws-lambda": "^10.1.0",
     "crawlee": "^3.13.2",
     "firebase-admin": "^12.6.0",
