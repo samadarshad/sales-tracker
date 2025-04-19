@@ -14,97 +14,145 @@ import * as logger from "firebase-functions/logger";
 // import * as functions from "firebase-functions";
 import admin from "firebase-admin"; // Use default import for admin
 
-// Import Puppeteer dependencies for serverless environment
-import puppeteer from 'puppeteer-extra'; // Use puppeteer-extra
-import chromium from 'chrome-aws-lambda'; // Import chrome-aws-lambda
-// Stealth plugin is typically used with puppeteer-extra, remove if using core directly
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-puppeteer.use(StealthPlugin()); // Add this line back
+// Import Crawlee and related dependencies
+import { PlaywrightCrawler, Configuration, log as crawleeLogger } from 'crawlee'; // Import Configuration
+// Import the specific storage client
+// import { MemoryStorageClient } from '@crawlee/memory-storage'; // Use this for Crawlee v3.8+ - REMOVED
+// If using older Crawlee (e.g., v3.0-v3.7), you might need:
+import { MemoryStorage } from '@crawlee/memory-storage'; // Use this import
+import chromium from 'chrome-aws-lambda'; // Keep for executable path potentially
+
+// Remove Puppeteer specific imports and setup
+// import puppeteer from 'puppeteer-extra'; // REMOVED
+// import StealthPlugin from 'puppeteer-extra-plugin-stealth'; // REMOVED
+// puppeteer.use(StealthPlugin()); // REMOVED
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- Scraper Function (adapted from scraper.js) ---
-// Takes a URL and returns a promise resolving to the promotion chance percentage
+// --- Scraper Function (Refactored for Crawlee) ---
 async function scrapeWebsiteForPromotion(url) {
-  let browser = null;
-  logger.info(`Starting scrape for: ${url}`);
+  let percentageChance = 0; // Store result here
+  logger.info(`Starting Crawlee scrape for: ${url}`); // Use Firebase logger for function-level logs
+
   try {
-    // Get executable path from chrome-aws-lambda
-    const executablePath = await chromium.executablePath;
+    // Determine if running in the emulator
+    const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-    // Check if executablePath is valid
-    if (!executablePath) {
-        logger.error("Chromium executable path not found via chrome-aws-lambda. Ensure it's installed correctly.");
-        throw new Error("Chromium executable path not found.");
-    }
-    logger.info(`Using Chromium executable at: ${executablePath}`);
+    let executablePath = undefined;
+    let launchArgs = undefined;
+    let headlessMode = true; // Default to true
 
-    // Launch browser using puppeteer-core and chrome-aws-lambda options
-    browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: executablePath,
-      headless: chromium.headless, // Use headless setting from chrome-aws-lambda
-      ignoreHTTPSErrors: true, // Often useful
-      // Remove previous args if using chromium.args, as they might conflict
-      // args: [
-      //     '--no-sandbox',
-      //     '--disable-setuid-sandbox',
-      //     '--disable-dev-shm-usage',
-      //     '--single-process'
-      // ],
-    });
-    const page = await browser.newPage();
+    if (!isEmulator) {
+        // Deployed environment: Use chrome-aws-lambda
+        logger.info("Running in deployed environment, using chrome-aws-lambda.");
+        executablePath = await chromium.executablePath;
+        launchArgs = chromium.args;
+        headlessMode = chromium.headless; // Use headless setting from chrome-aws-lambda
 
-    // Consider removing or adjusting UserAgent if using chrome-aws-lambda defaults
-    // await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    // Viewport might be set by chromium.defaultViewport
-    // await page.setViewport({ width: 1366, height: 768 });
+        if (!executablePath) {
+            logger.error("Chromium executable path not found via chrome-aws-lambda in deployed environment!");
+            throw new Error("Chromium executable path not found for deployed function.");
+        }
+        logger.info(`Using chromium.executablePath: ${executablePath}`);
 
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 60000 }); // 60s timeout
-    await page.waitForSelector('body', { timeout: 30000 }); // Wait up to 30s for body
-    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
-
-    const html = await page.content();
-
-
-    const promoKeywords = ['sale', 'offer', 'discount', 'promotion', 'save', 'deal', 'promo', 'clearance'];
-    const lowerCaseHtml = html.toLowerCase();
-    const foundKeywords = new Set();
-
-    promoKeywords.forEach(keyword => {
-      if (lowerCaseHtml.includes(keyword)) {
-        foundKeywords.add(keyword);
-      }
-    });
-
-    const percentageChance = (foundKeywords.size / promoKeywords.length) * 100;
-
-    if (foundKeywords.size > 0) {
-      logger.info(`Found keywords for ${url}: ${[...foundKeywords].join(', ')}`, { url: url });
     } else {
-      logger.info(`No keywords found for ${url}.`, { url: url });
-          // Optional: Log HTML preview for debugging
-      const htmlLines = html.split('\n');
-      const htmlPreview = htmlLines.slice(0, 5).join('\n');
-      logger.debug('--- HTML Preview ---', { url: url, preview: htmlPreview });
+        // Local emulator environment: Use Playwright's default browser installed via 'npx playwright install'
+        logger.info("Running in emulator, using default Playwright browser installation.");
+        // executablePath and launchArgs remain undefined
     }
 
-    logger.info(`Calculated chance for ${url}: ${percentageChance.toFixed(2)}%`, { url: url });
-    return percentageChance;
+    // Configure Crawlee to use in-memory storage instead of file system
+    // This Configuration instance will be used implicitly by the crawler created below
+    const config = new Configuration({
+        // Explicitly set the storage client to use memory
+        // storageClient: new MemoryStorageClient(), // For Crawlee v3.8+ - REMOVED
+        // If using older Crawlee, use: new MemoryStorage(),
+        storageClient: new MemoryStorage(), // Use this instantiation
+        persistStorage: false, // Keep this as well for clarity/belt-and-suspenders
+    });
+
+
+    const crawler = new PlaywrightCrawler({
+        // Pass the configuration with in-memory storage settings - REMOVED THIS LINE
+        // configuration: config,
+        launchContext: {
+            // Pass options to Playwright launch via launchOptions
+            launchOptions: {
+                executablePath: executablePath, // Will be undefined in emulator, using Playwright's default
+                args: launchArgs,             // Will be undefined in emulator
+                headless: headlessMode,       // Set based on environment
+                // Consider adding ignoreHTTPSErrors if needed:
+                // ignoreHTTPSErrors: true,
+            }
+        },
+        // Disable session pool persistence to avoid lock file issues in emulator/serverless
+        useSessionPool: false,
+        persistCookiesPerSession: false,
+        minConcurrency: 1, // Process one URL at a time
+        maxConcurrency: 1,
+        maxRequestsPerCrawl: 1, // Only process the single URL provided
+        requestHandlerTimeoutSecs: 120, // Increase timeout for request handling phase
+
+        async requestHandler({ page, request, log }) {
+            log.info(`Processing ${request.url}...`); // Use Crawlee's log inside handler
+
+            // Navigation is handled by Crawlee before requestHandler runs for the initial URL
+            // Wait for body and additional time
+            await page.waitForSelector('body', { timeout: 30000 });
+            log.info(`Body element found for ${request.url}. Waiting additional time...`);
+            await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+            log.info(`Additional wait finished for ${request.url}. Getting content...`);
+
+            const html = await page.content();
+
+            const promoKeywords = ['sale', 'offer', 'discount', 'promotion', 'save', 'deal', 'promo', 'clearance'];
+            const lowerCaseHtml = html.toLowerCase();
+            const foundKeywords = new Set();
+
+            promoKeywords.forEach(keyword => {
+                if (lowerCaseHtml.includes(keyword)) {
+                    foundKeywords.add(keyword);
+                }
+            });
+
+            // Update the outer scope variable
+            percentageChance = (foundKeywords.size / promoKeywords.length) * 100;
+
+            if (foundKeywords.size > 0) {
+                log.info(`Found keywords: ${[...foundKeywords].join(', ')}`);
+            } else {
+                log.info(`No keywords found.`);
+                 // Optional: Log HTML preview for debugging
+                const htmlLines = html.split('\n');
+                const htmlPreview = htmlLines.slice(0, 5).join('\n');
+                log.debug('--- HTML Preview ---', { preview: htmlPreview });
+            }
+
+            log.info(`Calculated chance: ${percentageChance.toFixed(2)}%`);
+        },
+
+        // Handle navigation errors, etc.
+        failedRequestHandler({ request, log, error }) { // Added error parameter
+            log.error(`Request ${request.url} failed. Error: ${error?.message || 'Unknown error'}`);
+            // percentageChance remains 0 (default)
+        },
+    });
+
+    await crawler.run([url]);
+    logger.info(`Crawlee finished for: ${url}. Final chance: ${percentageChance.toFixed(2)}%`); // Use Firebase logger
 
   } catch (error) {
-    logger.error(`Error scraping ${url}:`, error.message, { url: url, error: error });
-    return 0; // Return 0% on error
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
+    // Catch errors during crawler setup or run
+    const errorMessage = error.cause?.message || error.message; // Get nested error message if available
+    logger.error(`Error running Crawlee for ${url}:`, errorMessage, { url: url, error: error }); // Use Firebase logger
+    percentageChance = 0; // Ensure 0% on crawler setup/run error
   }
+
+  // Return the value captured by the requestHandler (or 0 on error)
+  return percentageChance;
 }
 // --- End Scraper Function ---
-
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -119,7 +167,7 @@ export const helloWorld = onRequest((request, response) => {
 export const dailyTrackerProcessor = onRequest(
     {
         timeoutSeconds: 540, // Increased timeout (max for v2 is 540s/9min for HTTP)
-        memory: '2GiB',      // Increased memory (2GiB recommended for Puppeteer)
+        memory: '2GiB',      // Increased memory (2GiB recommended for Puppeteer/Playwright)
         // region: 'us-central1' // Optional: specify region if needed
     },
     async (request, response) => {
@@ -140,12 +188,21 @@ export const dailyTrackerProcessor = onRequest(
         snapshot.forEach((doc) => {
           const trackerId = doc.id;
           const trackerData = doc.data();
+          logger.info(`Processing tracker: ${trackerId}`, { trackerId: trackerId }); // Use logger
+
+          // Ensure the tracker has a URL
+          if (!trackerData.websiteUrl) {
+              logger.warn(`Tracker ${trackerId} is missing websiteUrl field. Skipping.`, { trackerId: trackerId });
+              return; // Skip this tracker if no URL
+          }
+
 
           const processPromise = (async () => {
             let calculatedPercentage = 0; // Default value
             try {
-              // --- Call the actual scraper ---
+              // --- Call the actual scraper (now using Crawlee) ---
               calculatedPercentage = await scrapeWebsiteForPromotion(trackerData.websiteUrl);
+              logger.info(`Scraper returned ${calculatedPercentage.toFixed(2)}% for ${trackerId}`, { trackerId: trackerId });
               // --- End scraper call ---
 
               // Create a new document in the "sales" collection
@@ -155,20 +212,21 @@ export const dailyTrackerProcessor = onRequest(
                 date: admin.firestore.Timestamp.now()
               });
 
+              logger.info(`Successfully processed and saved result for tracker: ${trackerId}`, { trackerId: trackerId }); // Use logger
+
             } catch (error) {
-              // Error during scraping is handled within scrapeWebsiteForPromotion
-              // This catch block handles errors during Firestore write or other unexpected issues
-              logger.error(`Error saving result for tracker ${trackerId}:`, error, { trackerId: trackerId }); // Use logger
+              // Catch errors specifically from the scrapeWebsiteForPromotion call or Firestore write
+              logger.error(`Error processing or saving result for tracker ${trackerId}:`, error, { trackerId: trackerId }); // Use logger
               // Log error to the "sales" collection (optional)
               try {
                   await resultsRef.add({
                       trackerRef: doc.ref,
                       result: null, // Indicate failure
-                      error: `Saving Error: ${error.message || 'Unknown error'}`, // Add context
+                      error: `Processing/Saving Error: ${error.message || 'Unknown error'}`, // Add context
                       date: admin.firestore.Timestamp.now()
                   });
               } catch (logError) {
-                  logger.error(`Failed to log saving error to sales collection for tracker ${trackerId}:`, logError, { trackerId: trackerId }); // Use logger
+                  logger.error(`Failed to log processing error to sales collection for tracker ${trackerId}:`, logError, { trackerId: trackerId }); // Use logger
               }
             }
           })();
