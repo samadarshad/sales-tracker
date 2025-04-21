@@ -9,7 +9,7 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local",
-        "storage/**" // Add this line to ignore Crawlee's default storage
+        "storage/**"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run lint"
