@@ -8,7 +8,7 @@
  */
 
 // Use v2 modular imports
-import {onRequest} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 // import * as functions from "firebase-functions";
 import admin from "firebase-admin";
@@ -20,26 +20,18 @@ import chromium from 'chrome-aws-lambda';
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- REMOVED scrapeWebsiteForPromotion function ---
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-// Define helloWorld using v2 onRequest
-export const helloWorld = onRequest((request, response) => {
-  logger.info("Hello logs!", {structuredData: true});
-  response.send("Hello from Firebase!");
-});
-
-// Define dailyTrackerProcessor using v2 onRequest and pass runtime options as the first argument
-export const dailyTrackerProcessor = onRequest(
+// Define dailyTrackerProcessor using v2 onSchedule
+export const dailyTrackerProcessor = onSchedule(
     {
-        timeoutSeconds: 540, // Max for v2 HTTP functions
+        schedule: "55 8 * * *", // Run daily at 8:55 AM
+        timeZone: "UTC", // Or your desired timezone e.g., "Europe/London", "America/New_York"
+        timeoutSeconds: 540, // Max for v2 HTTP functions (keep for now, adjust if needed)
         memory: '4GiB',      // Increased memory for Playwright/Crawlee
         // region: 'us-central1'
     },
-    async (request, response) => {
-        logger.info("Starting daily tracker processing job on request.");
+    async (event) => { // Changed signature: removed request, response
+        logger.info("Starting daily tracker processing job on schedule."); // Updated log message
 
         const trackersRef = db.collection("trackers");
         const resultsRef = db.collection("sales");
@@ -47,8 +39,7 @@ export const dailyTrackerProcessor = onRequest(
 
         if (snapshot.empty) {
           logger.info("No trackers found to process.");
-          response.status(200).send("No trackers found to process.");
-          return;
+          return; // Exit function
         }
 
         // --- Prepare URLs and Tracker Info ---
@@ -68,8 +59,7 @@ export const dailyTrackerProcessor = onRequest(
 
         if (trackerInfos.length === 0) {
             logger.info("No valid trackers with URLs found to process.");
-            response.status(200).send("No valid trackers with URLs found.");
-            return;
+            return; // Exit function
         }
 
         const urlsToCrawl = trackerInfos.map(info => info.url);
@@ -211,11 +201,9 @@ export const dailyTrackerProcessor = onRequest(
         try {
             await Promise.all(firestoreWritePromises);
             logger.info("Finished saving results to Firestore.");
-            response.status(200).send("Tracker processing finished successfully.");
         } catch (error) {
             // Errors during individual writes are caught above, this catches potential Promise.all issues
             logger.error("Error waiting for all Firestore write promises:", error);
-            response.status(500).send("Tracker processing finished, but some results might have failed to save.");
         }
 });
 
