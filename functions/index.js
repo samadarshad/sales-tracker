@@ -15,109 +15,12 @@ import admin from "firebase-admin";
 
 // Import Crawlee and related dependencies
 import { PlaywrightCrawler, Configuration, log as crawleeLogger } from 'crawlee';
-// If using older Crawlee (e.g., v3.0-v3.7), you might need:
-import { MemoryStorage } from '@crawlee/memory-storage';
 import chromium from 'chrome-aws-lambda';
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// --- Scraper Function (Refactored for Crawlee) ---
-async function scrapeWebsiteForPromotion(url) {
-  let percentageChance = 0;
-  let htmlPreviewForLog = '';
-
-  try {
-    const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-
-    let executablePath = undefined;
-    let launchArgs = undefined;
-    let headlessMode = true;
-
-    if (!isEmulator) {
-        executablePath = await chromium.executablePath;
-        launchArgs = chromium.args;
-        headlessMode = chromium.headless;
-
-        if (!executablePath) {
-            throw new Error("Chromium executable path not found for deployed function.");
-        }
-    }
-
-    // Configure Crawlee to use in-memory storage instead of file system
-    const config = new Configuration({
-        persistStorage: false, // Avoid writing state to disk in serverless environment
-    });
-
-
-    const crawler = new PlaywrightCrawler({
-        // configuration: config, // Pass config directly if needed by your Crawlee version
-        launchContext: {
-            launchOptions: {
-                executablePath: executablePath,
-                args: launchArgs,
-                headless: headlessMode,
-                // ignoreHTTPSErrors: true,
-            }
-        },
-        useSessionPool: false, // Avoid lock file issues in serverless
-        persistCookiesPerSession: false,
-        minConcurrency: 1,
-        maxConcurrency: 1,
-        maxRequestsPerCrawl: 1,
-        requestHandlerTimeoutSecs: 120,
-
-        async requestHandler({ page, request, log }) {
-            await page.waitForSelector('body', { timeout: 30000 });
-            await new Promise(resolve => setTimeout(resolve, 10000)); // Wait for dynamic content
-
-            const html = await page.content();
-
-            const promoKeywords = ['sale', 'offer', 'discount', 'promotion', 'save', 'deal', 'promo', 'clearance'];
-            const lowerCaseHtml = html.toLowerCase();
-            const foundKeywords = new Set();
-
-            promoKeywords.forEach(keyword => {
-                if (lowerCaseHtml.includes(keyword)) {
-                    foundKeywords.add(keyword);
-                }
-            });
-
-            percentageChance = (foundKeywords.size / promoKeywords.length) * 100;
-
-            if (percentageChance === 0) {
-                const htmlLines = html.split('\n');
-                htmlPreviewForLog = htmlLines.slice(0, 10).join('\n');
-            }
-        },
-
-        failedRequestHandler({ request, log, error }) {
-            percentageChance = 0;
-        },
-    },
-    config // Pass config as second argument if needed by your Crawlee version
-  );
-
-    await crawler.run([url]);
-
-    // Final Log: Include HTML preview conditionally
-    if (percentageChance === 0 && htmlPreviewForLog) {
-        logger.info(`Final chance for ${url}: ${percentageChance.toFixed(2)}%. HTML Preview:\n${htmlPreviewForLog}`);
-    } else if (percentageChance === 0) {
-        logger.info(`Final chance for ${url}: ${percentageChance.toFixed(2)}% (Error or no keywords found)`);
-    } else {
-        logger.info(`Final chance for ${url}: ${percentageChance.toFixed(2)}%`);
-    }
-
-
-  } catch (error) {
-    percentageChance = 0;
-    logger.info(`Final chance for ${url}: ${percentageChance.toFixed(2)}% (Error during setup/run)`);
-  }
-
-  return percentageChance;
-}
-// --- End Scraper Function ---
+// --- REMOVED scrapeWebsiteForPromotion function ---
 
 // Create and deploy your first functions
 // https://firebase.google.com/docs/functions/get-started
@@ -148,55 +51,171 @@ export const dailyTrackerProcessor = onRequest(
           return;
         }
 
-        const processingPromises = [];
-
+        // --- Prepare URLs and Tracker Info ---
+        const trackerInfos = [];
         snapshot.forEach((doc) => {
-          const trackerId = doc.id;
           const trackerData = doc.data();
-          logger.info(`Processing tracker: ${trackerId}`, { trackerId: trackerId });
-
-          if (!trackerData.websiteUrl) {
-              logger.warn(`Tracker ${trackerId} is missing websiteUrl field. Skipping.`, { trackerId: trackerId });
-              return;
+          if (trackerData.websiteUrl) {
+            trackerInfos.push({
+              url: trackerData.websiteUrl,
+              docRef: doc.ref,
+              trackerId: doc.id,
+            });
+          } else {
+            logger.warn(`Tracker ${doc.id} is missing websiteUrl field. Skipping.`, { trackerId: doc.id });
           }
+        });
 
+        if (trackerInfos.length === 0) {
+            logger.info("No valid trackers with URLs found to process.");
+            response.status(200).send("No valid trackers with URLs found.");
+            return;
+        }
 
-          const processPromise = (async () => {
-            let calculatedPercentage = 0;
-            try {
-              calculatedPercentage = await scrapeWebsiteForPromotion(trackerData.websiteUrl);
-              // logger.info(`Scraper returned ${calculatedPercentage.toFixed(2)}% for ${trackerId}`, { trackerId: trackerId }); // Logged inside scraper function
+        const urlsToCrawl = trackerInfos.map(info => info.url);
+        const resultsMap = new Map(); // To store results keyed by URL
 
-              await resultsRef.add({
-                trackerRef: doc.ref,
-                result: calculatedPercentage,
-                date: admin.firestore.Timestamp.now()
-              });
+        // --- Configure and Run Crawler ---
+        try {
+            const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+            let executablePath = undefined;
+            let launchArgs = undefined;
+            let headlessMode = true;
 
-            } catch (error) {
-              logger.error(`Error processing or saving result for tracker ${trackerId}:`, error, { trackerId: trackerId });
-              try {
-                  await resultsRef.add({
-                      trackerRef: doc.ref,
-                      result: null,
-                      error: `Processing/Saving Error: ${error.message || 'Unknown error'}`,
-                      date: admin.firestore.Timestamp.now()
-                  });
-              } catch (logError) {
-                  logger.error(`Failed to log processing error to sales collection for tracker ${trackerId}:`, logError, { trackerId: trackerId });
-              }
+            if (!isEmulator) {
+                executablePath = await chromium.executablePath;
+                launchArgs = chromium.args;
+                headlessMode = chromium.headless;
+                if (!executablePath) {
+                    throw new Error("Chromium executable path not found for deployed function.");
+                }
             }
-          })();
-          processingPromises.push(processPromise);
+
+            const config = new Configuration({
+                persistStorage: false,
+            });
+
+            const crawler = new PlaywrightCrawler({
+                launchContext: {
+                    launchOptions: {
+                        executablePath: executablePath,
+                        args: launchArgs,
+                        headless: headlessMode,
+                    }
+                },
+                useSessionPool: false,
+                persistCookiesPerSession: false,
+                minConcurrency: 1,
+                maxConcurrency: 1, // Adjust if needed and resources allow
+                // maxRequestsPerCrawl: urlsToCrawl.length, // Not needed when passing array to run()
+                requestHandlerTimeoutSecs: 120,
+
+                async requestHandler({ page, request, log }) {
+                    let percentageChance = 0;
+                    let htmlPreviewForLog = '';
+                    try {
+                        await page.waitForSelector('body', { timeout: 30000 });
+                        await new Promise(resolve => setTimeout(resolve, 10000));
+
+                        const html = await page.content();
+                        const promoKeywords = ['sale', 'offer', 'discount', 'promotion', 'save', 'deal', 'promo', 'clearance'];
+                        const lowerCaseHtml = html.toLowerCase();
+                        const foundKeywords = new Set();
+
+                        promoKeywords.forEach(keyword => {
+                            if (lowerCaseHtml.includes(keyword)) {
+                                foundKeywords.add(keyword);
+                            }
+                        });
+                        percentageChance = (foundKeywords.size / promoKeywords.length) * 100;
+
+                        if (percentageChance === 0) {
+                            const htmlLines = html.split('\n');
+                            htmlPreviewForLog = htmlLines.slice(0, 10).join('\n');
+                        }
+
+                        // Store successful result
+                        resultsMap.set(request.url, { percentage: percentageChance, error: null, htmlPreview: htmlPreviewForLog });
+
+                        // Final Log per URL
+                        if (percentageChance === 0 && htmlPreviewForLog) {
+                            logger.info(`Final chance for ${request.url}: ${percentageChance.toFixed(2)}%. HTML Preview:\n${htmlPreviewForLog}`);
+                        } else {
+                            logger.info(`Final chance for ${request.url}: ${percentageChance.toFixed(2)}%`);
+                        }
+
+                    } catch (pageError) {
+                        // Handle errors during page processing
+                        logger.error(`Error processing page ${request.url}:`, pageError);
+                        resultsMap.set(request.url, { percentage: 0, error: `Page Error: ${pageError.message || 'Unknown page error'}`, htmlPreview: '' });
+                        logger.info(`Final chance for ${request.url}: 0.00% (Page Error)`);
+                    }
+                },
+
+                failedRequestHandler({ request, log, error }) {
+                    // Store failure result
+                    logger.error(`Request failed for ${request.url}:`, error);
+                    resultsMap.set(request.url, { percentage: 0, error: `Request Error: ${error?.message || 'Unknown request error'}`, htmlPreview: '' });
+                    logger.info(`Final chance for ${request.url}: 0.00% (Request Error)`);
+                },
+            }, config); // Pass config as second argument
+
+            logger.info(`Starting crawl for ${urlsToCrawl.length} URLs.`);
+            await crawler.run(urlsToCrawl);
+            logger.info("Crawling finished.");
+
+        } catch (crawlSetupError) {
+            logger.error("Error setting up or running the crawler:", crawlSetupError);
+            // If crawler setup fails, mark all as errors
+            trackerInfos.forEach(info => {
+                if (!resultsMap.has(info.url)) {
+                    resultsMap.set(info.url, { percentage: 0, error: `Crawler Setup Error: ${crawlSetupError.message || 'Unknown setup error'}`, htmlPreview: '' });
+                }
+            });
+        }
+
+        // --- Save Results to Firestore ---
+        const firestoreWritePromises = [];
+        logger.info("Saving results to Firestore...");
+
+        trackerInfos.forEach((info) => {
+            const resultData = resultsMap.get(info.url);
+            let dataToSave;
+
+            if (resultData) {
+                dataToSave = {
+                    trackerRef: info.docRef,
+                    result: resultData.percentage,
+                    error: resultData.error || null, // Store error message if present
+                    date: admin.firestore.Timestamp.now()
+                };
+            } else {
+                // Should not happen if setup error handling is correct, but as a fallback
+                logger.warn(`No result found in map for ${info.url}. Marking as error.`);
+                dataToSave = {
+                    trackerRef: info.docRef,
+                    result: null,
+                    error: 'Processing Error: Result missing after crawl.',
+                    date: admin.firestore.Timestamp.now()
+                };
+            }
+
+            firestoreWritePromises.push(
+                resultsRef.add(dataToSave).catch(dbError => {
+                    logger.error(`Failed to save result for tracker ${info.trackerId} (${info.url}) to Firestore:`, dbError);
+                    // Optionally, try logging the error to a separate error log in Firestore
+                })
+            );
         });
 
         try {
-            await Promise.all(processingPromises);
-            logger.info("Finished daily tracker processing job.");
+            await Promise.all(firestoreWritePromises);
+            logger.info("Finished saving results to Firestore.");
             response.status(200).send("Tracker processing finished successfully.");
         } catch (error) {
-            logger.error("Error waiting for all tracker processing promises:", error);
-            response.status(500).send("Tracker processing failed overall.");
+            // Errors during individual writes are caught above, this catches potential Promise.all issues
+            logger.error("Error waiting for all Firestore write promises:", error);
+            response.status(500).send("Tracker processing finished, but some results might have failed to save.");
         }
 });
 
